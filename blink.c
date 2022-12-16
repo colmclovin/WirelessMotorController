@@ -18,3 +18,7 @@ void main(void)
 	}
 }
 
+void main(void)
+{
+    printf("testing git")
+}
