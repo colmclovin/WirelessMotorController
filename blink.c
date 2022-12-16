@@ -18,10 +18,3 @@ void main(void)
 	}
 }
 
-void testing(void)
-{
-    printf("I am just testing random stuff")
-    printf("12345678")
-    printf("bla bla")
-    printf("testing commands")
-}
