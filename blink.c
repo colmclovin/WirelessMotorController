@@ -21,4 +21,5 @@ void main(void)
 void main(void)
 {
     printf("I am just testing random stuff")
+    printf("12345678")
 }
