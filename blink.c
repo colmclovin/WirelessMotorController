@@ -20,5 +20,5 @@ void main(void)
 
 void main(void)
 {
-    printf("testing git")
+    printf("I am just testing random stuff")
 }
