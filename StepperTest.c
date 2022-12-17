@@ -9,8 +9,6 @@
  *
  *
  *
- *
- *
  *      Author: colton
  */
 #include <msp430.h>
