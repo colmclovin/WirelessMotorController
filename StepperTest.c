@@ -1,7 +1,3 @@
-
-
-
-
 /*
  * StepperTest.c
  *
