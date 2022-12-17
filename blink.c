@@ -20,7 +20,3 @@ void main(void)
 }
 
 
-void test(void)
-{
-    print("test");
-}
