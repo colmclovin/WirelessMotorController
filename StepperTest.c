@@ -6,7 +6,7 @@
  * StepperTest.c
  *
  *  Created on: Nov. 20, 2022
- *      Author: colto
+ *      Author: colton
  */
 #include <msp430.h>
 
