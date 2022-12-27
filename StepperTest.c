@@ -92,7 +92,7 @@ void stepMotor(int thisStep)
         P1OUT |= 0b00000010;                 //coil 4 on 3 off
         P2OUT |= 0b00010000;                 //coil 2 on 1 off
         break;
-    case 3://1001
+    case 3://100    1
         P1OUT |= 0b00000010;                 //coil 4 on 3 off
         P2OUT |= 0b00001000;                 //coil 1 on 2 off
         break;
