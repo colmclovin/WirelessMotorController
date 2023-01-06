@@ -97,5 +97,12 @@ void motorCW()
  //P1OUT = BIT5 + BIT4;                 //Coil 3 and Coil 4
  //P2OUT = BIT1 + BIT0;                 // Coil 1 and Coil 2
 }
+void motorStop()
+{
+    P1OUT &= ~BIT5; //coil 3 off
+    P2OUT &= ~BIT0; //coil 2 off
+    P1OUT &= ~BIT4; //coil 4 off
+    P2OUT &= ~BIT1; //coil 1 off
 
+}
 
