@@ -7,7 +7,7 @@
 
 
 //get motor working (DONE)
-//get motor working through a button
+//get motor working     through a button
 //turn external LEDs on
 //Get NRF working
 //put it all together
