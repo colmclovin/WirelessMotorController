@@ -7,12 +7,13 @@
 
 
 //get motor working (DONE)
-//get motor working     through a button
+//get motor working     +through a button
 //turn external LEDs on
 //Get NRF working
 //put it all together
 
 #include <msp430.h>
+#include <msp430g2553.h>
 
 void motorSetup();
 void motorCW();
@@ -42,27 +43,29 @@ void main(void)
 
 void motorSetup()
 {
-       //Watchdog timer and Clock initialization
-       WDTCTL = WDTPW + WDTHOLD;                //stop watchdog timer
-       BCSCTL2 |= DIVS_3;                       //should give 2 Mhz smclk
-       //Output declaration
-       P1DIR |= BIT5 + BIT4;                    //configure P1.4 and P1.5 as output for motor
-       P2DIR |= BIT1 + BIT0;                    //configure P2.1 and P2.0 as output for motor
+        //Watchdog timer and Clock initialization
+              WDTCTL = WDTPW + WDTHOLD;                //stop watchdog timer
+              BCSCTL2 |= DIVS_3;                       //should give 2 Mhz smclk
+              //Output declaration
+              P1DIR |= BIT5 + BIT4;                    //configure P1.4 and P1.5 as output for motor
+              P2DIR |= BIT1 + BIT0;                    //configure P2.1 and P2.0 as output for motor
 
-       P1OUT &= ~BIT5 + ~BIT4;                  //turn outputs off so motor is initially not operating
-       P2OUT &= ~BIT1 + ~BIT0;                  //turn outputs off so motor is initially not operating
-       //Input declaration
-       P1DIR &= ~BIT0;
-      // P2DIR &=
+              P1OUT &= ~BIT5 + ~BIT4;                  //turn outputs off so motor is initially not operating
+              P2OUT &= ~BIT1 + ~BIT0;                  //turn outputs off so motor is initially not operating
+              //Input declaration
+              P1DIR &= ~BIT0;
+             // P2DIR &=
 
 
 
-       //coil configuration:
+              //coil configuration:
 
-       //coil 1 P2.1
-       //coil 2 P2.0
-       //coil 3 P1.5
-       //coil 4 P1.4
+              //coil 1 P2.1
+              //coil 2 P2.0
+              //coil 3 P1.5
+              //coil 4 P1.4
+
+
 }
 
 void motorCW()
