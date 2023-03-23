@@ -1,59 +1,86 @@
-/*
- * StepperMotor.c
- *
- *  Created on: Dec. 27, 2022
- *      Author: Colton
- */
-
-
-//Get NRF working
-
 #include <msp430.h>
+#include <stdint.h>
+#include <string.h>
+#include "nrf24l01.h"
+#include <stdio.h>
+#include <RF24.h>
+#include "RF24_config.h"
 
 
+#define MOSI BIT2
+#define MISO BIT1
+#define SCK BIT4
+#define CE BIT7
+#define CSN BIT5
 
-void main(void)
+void spi_init(void)
 {
-    //run initialization function for all devices
-    Setup();
-
-
-    //infinite run loop
-    while(1)
-    {
-        //check for inputs
-
-
-        //run motor
-        //etc
-
-
-    }
+    UCB0CTL1 |= UCSWRST;                    // Put USCI state machine in reset
+    UCB0CTL0 = UCCKPH + UCMSB + UCMST + UCSYNC; // 3-pin, 8-bit SPI master
+    UCB0CTL1 |= UCSSEL_2;                   // SMCLK as clock source
+    UCB0BR0 = 0x02;                         // SMCLK / 2
+    UCB0BR1 = 0;
+    P1SEL |= MOSI + MISO + SCK;             // P1.2, P1.1, P1.4 USCI_B0 option select
+    P1SEL2 |= MOSI + MISO + SCK;            // P1.2, P1.1, P1.4 USCI_B0 option select
+    UCB0CTL1 &= ~UCSWRST;                   // Initialize USCI state machine
 }
 
-
-
-void Setup()
+void nrf_ce_high(void)
 {
-       //Watchdog timer and Clock initialization
-       WDTCTL = WDTPW + WDTHOLD;                //stop watchdog timer
-       BCSCTL2 |= DIVS_3;                       //should give 2 Mhz smclk
-       //Output declaration
-       P1DIR |= BIT5 + BIT4;                    //configure P1.4 and P1.5 as output for motor
-       P2DIR |= BIT1 + BIT0;                    //configure P2.1 and P2.0 as output for motor
+    P1OUT |= CE;
+}
 
-       P1OUT &= ~BIT5 + ~BIT4;                  //turn outputs off so motor is initially not operating
-       P2OUT &= ~BIT1 + ~BIT0;                  //turn outputs off so motor is initially not operating
-       //Input declaration
-       P1DIR &= ~BIT0;
-      // P2DIR &=
+void nrf_ce_low(void)
+{
+    P1OUT &= ~CE;
+}
 
+void nrf_csn_high(void)
+{
+    P1OUT |= CSN;
+}
 
+void nrf_csn_low(void)
+{
+    P1OUT &= ~CSN;
+}
 
-       //coil configuration:
+void nrf_init(void)
+{
+    spi_init();
+    P1DIR |= CE + CSN;                      // CE, CSN as outputs
+    nrf_ce_low();
+    nrf_csn_high();
+    nrf_write_register(NRF_REG_CONFIG, 0x08);  // Enable 1-byte CRC, PTX mode
+}
 
-       //coil 1 P2.1
-       //coil 2 P2.0
-       //coil 3 P1.5
-       //coil 4 P1.4
+void nrf_send_data(uint8_t *data, uint8_t len)
+{
+    nrf_ce_low();
+    nrf_csn_low();
+    spi_transfer_byte(NRF_CMD_W_TX_PAYLOAD);
+    uint8_t i;
+    for (i = 0; i < len; i++)
+    {
+        spi_transfer_byte(data[i]);
+    }
+
+    nrf_csn_high();
+    nrf_ce_high();
+    __delay_cycles(10);
+    nrf_ce_low();
+}
+
+int main(void)
+{
+    WDTCTL = WDTPW + WDTHOLD;               // Stop WDT
+    nrf_init();                             // Initialize NRF24L01
+
+    while (1)
+    {
+        uint8_t data[] = "Hello, Arduino!"; // Data to be sent
+        uint8_t len = strlen((char*)data);  // Length of data
+        nrf_send_data(data, len);           // Send data
+        __delay_cycles(1000000);            // Wait 1 second
+    }
 }
