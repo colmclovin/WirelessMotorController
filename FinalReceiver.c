@@ -1,14 +1,5 @@
 /*
- * nrftestpersonalized.c
- *
- *  Created on: Mar. 23, 2023
- *      Author: colto
- */
-
-
- /*
   Copyright (C) 2022 Selim Gullulu <drselim2021@gmail.com>
-
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
   version 2 as published by the Free Software Foundation.
@@ -17,8 +8,13 @@
 #include <msp430.h>
 #include "nrf24l01.h"
 
-//This code, together with the nrf24.h header file configures the nRF24L01+ as a Transmitter
-//and sends 8 integer values to a receiver (Arduino nano & nrf24L01+) to be displayed on serial monitor.
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+//This code, together with the nrf24.h header file configures the nRF24L01+ as a RECEIVER
+//and receives 8 integer values from the transmitter (Arduino nano & nrf24L01+ & mq gas sensors - which are not necessary,
+//any 8 integer values will be OK. And it displays the values on serial input -19200 baud, I'll use Putty this time
 //Please check my YouTube channel & subscribe for the related content:
 //https://www.youtube.com/c/drselim
 
@@ -26,17 +22,25 @@
 #define MISO BIT1  //   P1.1
 #define SCLK BIT4  //   P1.4
 #define CE BIT7    //   P1.7
-#define CSN BIT5   //   P1.5 for transmitter and P1.3 for reciever
+#define CSN BIT3   //   P1.3
 int i;
 int j;
 int k;
+int l; //for pload2, so many indexes..
 int x;
 int pd; //payload func index 0-15
 int pd_i;  //payload func i index 0-7
 int pd_x;
+int pipe_nr; //4bytes = 32 bits
+int pyld1[8]; //1st 16 bytes in rx fifo
+int pyld2[8]; //2nd 16 bytes in rx fifo
 
 unsigned char status_reg;
 unsigned char read_reg[5];
+char buf[5];
+char pipe_nr_chr[5]; //8bits*5 = 40 bits
+char bosluk[] = " ";
+char next_satir[] = "\r\n";  //sorry for mixing eng and tur. i'm doing it on purpose :)
 
 unsigned char read_reg_CONFIG[1];
 unsigned char read_reg_EN_AA[1];
@@ -62,19 +66,20 @@ unsigned char read_reg_RX_PW_P3[1];
 unsigned char read_reg_RX_PW_P4[1];
 unsigned char read_reg_RX_PW_P5[1];
 unsigned char read_reg_FIFO_STATUS[1];
+unsigned char read_PAYLOAD[32];
 
-unsigned char clr_status[1]={0x70};
+unsigned char clr_status[1]={0x70}; //clr status reg
 
-unsigned char rf_setupregister[1]={0b00000001};
-unsigned char configregister[1]={0b00001110};
-unsigned char rf_chanregister[1]={0b01001100};
-unsigned char address[6]="00001";
-unsigned char setup_retr_register[1]={0b01011111};
+unsigned char rf_setupregister[1]={0b00000001};  //Data Rate -> '0' (1 Mbps) & PA_MIN
+unsigned char configregister[1]={0b00001111};  //CRC '1'-> (2 bytes)  & Power ON & Enable CRC & RECEIVER -------1
+unsigned char rf_chanregister[1]={0b01001100};  //Channel '1001100'
+unsigned char address[6]="00001";  //write to RX_ADDR_P0 and TX_ADDR
+unsigned char setup_retr_register[1]={0b01011111};  //retry values
 unsigned char en_aa_register[1]={0b00111111};
-unsigned char rx_pw_register[1]={0b00100000};
+unsigned char rx_pw_register[1]={0b00100000};  //RX_ payload width register -->32
 
-void SCLK_Pulse (void);
-void Send_Bit (unsigned int value);
+void SCLK_Pulse (void);  //To create a clock pulse high low
+void Send_Bit (unsigned int value);     //For sending 1 or zero
 void CE_On (void);  //Chip enable
 void CE_Off (void);  //Chip disable
 void CSN_On (void);     //CSN On
@@ -84,17 +89,18 @@ void Instruction_Byte_MSB_First (int content);
 void Read_Byte_MSB_First(int index, unsigned char regname[]);
 void Write_Byte_MSB_First(unsigned char content[], int index2);
 void Write_Payload_MSB_First(int pyld[], int index3);
+void ser_output(char *str);  //Serial output func
 
 void main(void)
     {
-    int payload1[8] = {1,1,1,1,1,1,1,1};
-    int payload2[8] = {0,0,0,0,0,0,0,0};
+
     __delay_cycles(100); //power on reset
 
     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
     //P2DIR &= 0x00 ;
-    P1OUT &= 0x00;
-    P1DIR |= MOSI + SCLK + CE + CSN ;  //Output Pins
+    //P1DIR |= BIT0; //added
+    P2OUT &= 0x00;
+    P1DIR |= MOSI + SCLK + CE + CSN + BIT0 ;  //Output Pins
     P1DIR &= ~MISO;
 
     CE_Off();
@@ -170,73 +176,67 @@ void main(void)
     /****************************
     **END CONFIGURING REGISTERS**
     *****************************/
-    __delay_cycles(2000);  //start_up 1.5 ms
+    __delay_cycles(2000);  //start_up >1.5 ms
+
     while(1){
-        //STDBY-I
-        CSN_Off();
-        Instruction_Byte_MSB_First(W_TX_PAYLOAD);
-        Write_Payload_MSB_First(payload1,8);
-        Write_Payload_MSB_First(payload1,8);
-        CSN_On();
         CE_On();
-        __delay_cycles(50); //min pulse >10usec
-        CE_Off();
-        //TX settling 130 usec
-        __delay_cycles(150);
-        //TX MODE
-
-        __delay_cycles(20000);
-        //STDBY-I
+        __delay_cycles(150); //settling RX
         CSN_Off();
-        Instruction_Byte_MSB_First(NOP);
+        Instruction_Byte_MSB_First(NOP);  //to get the status reg..
         CSN_On();
-        if ((status_reg & BIT4) == 0x10){
-                CSN_Off();
-                Instruction_Byte_MSB_First(W_REGISTER | STATUS);
-                Write_Byte_MSB_First(clr_status,1);
-                CSN_On();
-                CSN_Off();
-                Instruction_Byte_MSB_First(FLUSH_TX);
-                CSN_On();
+        if ((status_reg & BIT6) == 0x40){
+            CE_Off();
+            CSN_Off();
+            Instruction_Byte_MSB_First(R_RX_PAYLOAD);
+            Read_Byte_MSB_First(32,read_PAYLOAD);
+            CSN_On();
+            pipe_nr = status_reg & BIT4;
 
+            //old returns int(32 bits)
+            //new pointer to char(1 bit)
+            //converts integer into ascii
+            ltoa(pipe_nr,pipe_nr_chr,10); //ti recommended
+            //ser_output(pipe_nr_chr);
+            //ser_output(next_satir);
+            j=0;
+            l=0;
+            for (i=0;i<=14;i+=2){
+                pyld1[j]=read_PAYLOAD[i] | (read_PAYLOAD[i+1] << 8);
+                ltoa(pyld1[j],buf,10);
+                ser_output(buf); ser_output(bosluk);
+                j++;
+
+            }
+            ser_output(next_satir);
+            for (i=16;i<=30;i+=2){
+                            pyld2[l]=read_PAYLOAD[i] | (read_PAYLOAD[i+1] << 8);
+                            ltoa(pyld1[j],buf,10);
+                            //ser_output(buf); ser_output(bosluk);
+                            l++;
+                        }
+            //ser_output(next_satir);
+            CSN_Off();
+            Instruction_Byte_MSB_First(W_REGISTER | STATUS);
+            Write_Byte_MSB_First(clr_status,1);
+            CSN_On();
+
+
+            if(pyld1[0] == 1)
+            {
+                P1OUT |= BIT0;
+                __delay_cycles(1000);
+
+            }
+            else if(pyld1[0] == 0)
+            {
+                P1OUT &= ~BIT0;
+                __delay_cycles(1000);
+
+            }
         }
-        __delay_cycles(100000);
-        CSN_Off();
-        Instruction_Byte_MSB_First(W_TX_PAYLOAD);
-        Write_Payload_MSB_First(payload2,8);
-        Write_Payload_MSB_First(payload2,8);
-        CSN_On();
-        CE_On();
-        __delay_cycles(50); //min pulse >10usec
-        CE_Off();
-        //TX settling 130 usec
-        __delay_cycles(150);
-        //TX MODE
-
-        __delay_cycles(20000);
-        //STDBY-I
-        CSN_Off();
-        Instruction_Byte_MSB_First(NOP);
-        CSN_On();
-        if ((status_reg & BIT4) == 0x10){
-                CSN_Off();
-                Instruction_Byte_MSB_First(W_REGISTER | STATUS);
-                Write_Byte_MSB_First(clr_status,1);
-                CSN_On();
-                CSN_Off();
-                Instruction_Byte_MSB_First(FLUSH_TX);
-                CSN_On();
-
-        }
-
-
-        __delay_cycles(100000);
-
-
 
     }
 }
-
 void SCLK_Pulse (void)
 {
   P1OUT |= SCLK;//set high with OR 1
@@ -355,4 +355,9 @@ void Write_Payload_MSB_First(int pyld[], int index3)
 
         }
 }
-
+void ser_output(char *str){
+    while(*str != 0){
+        while (!(IFG2&UCA0TXIFG));
+        UCA0TXBUF = *str++;
+    }
+}

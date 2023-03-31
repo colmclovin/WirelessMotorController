@@ -108,33 +108,5 @@ void motorStop()
     P2OUT &= ~BIT1; //coil 1 off
 
 }
-void SPIset(){
-    UCB0CTL1 |= UCSWRST; //PUT B0 into SW reset
-    UCB0CTL1 |= UCSSEL_2; // CHOOSE SMCLK CLOCK
-    UCB0BR0 = 10; //SET PRESCLAR TO 10 TO get clock = 100kHz
-    UCB0CTL0 |= UCSYNC; //put B0 in SPI mode
-    UCB0CTL0 |= UCMST; //put into SPI master
 
-    //configuring the ports
-    P1SEL2 |= BIT5;    //P1.5 SCLK (11)
-    P1SEL |=  BIT5;
-
-    P1SEL2 |= BIT7;    //P1.7 SIM0 (11)
-    P1SEL |= BIT7;
-
-    P1SEL2 |= BIT6;    //P1.6 SOM0 (11)
-    P1SEL |= BIT6;
-
-
-    UCB0CTL1 &= ~UCSWRST; // TAKE B0 out of reset mode
-
-    int i;
-     while(1){
-         UCB0TXBUF = 0x4D;
-         for(i=0; i<10000;i+1){
-
-         }
-     }
-
-}
 

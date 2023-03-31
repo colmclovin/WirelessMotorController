@@ -83,7 +83,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="nrfReceiverGithub.c|nrf24githubtest.c|nrftestpersonalized.c|exampleTX.c|nrfTest.c|test_led.c|nrf_test.c|StepperMotor.c|StepperTest.c|blink.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="FinalTransmitter.c|nrftestpersonalized.c|nrfReceiverGithub.c|nrfReceiver.c|nrf24githubtest.c|exampleTX.c|nrfTest.c|test_led.c|nrf_test.c|StepperMotor.c|blink.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

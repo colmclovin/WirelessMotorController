@@ -27,6 +27,9 @@
 #define SCLK BIT4  //   P1.4
 #define CE BIT7    //   P1.7
 #define CSN BIT5   //   P1.5 for transmitter and P1.3 for reciever
+#define ACTIVATE BIT6
+#define LED BIT0
+
 int i;
 int j;
 int k;
@@ -94,8 +97,13 @@ void main(void)
     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
     //P2DIR &= 0x00 ;
     P1OUT &= 0x00;
-    P1DIR |= MOSI + SCLK + CE + CSN ;  //Output Pins
+    P1DIR |= MOSI + SCLK + CE + CSN + + LED;  //Output Pins
     P1DIR &= ~MISO;
+
+    P1DIR &= ~ACTIVATE;
+    P1REN |= ACTIVATE;              //Pull Up/Down Enable
+    P1OUT |= ACTIVATE;              //Pull Up Enable
+
 
     CE_Off();
     CSN_On();
@@ -172,67 +180,76 @@ void main(void)
     *****************************/
     __delay_cycles(2000);  //start_up 1.5 ms
     while(1){
-        //STDBY-I
-        CSN_Off();
-        Instruction_Byte_MSB_First(W_TX_PAYLOAD);
-        Write_Payload_MSB_First(payload1,8);
-        Write_Payload_MSB_First(payload1,8);
-        CSN_On();
-        CE_On();
-        __delay_cycles(50); //min pulse >10usec
-        CE_Off();
-        //TX settling 130 usec
-        __delay_cycles(150);
-        //TX MODE
 
-        __delay_cycles(20000);
-        //STDBY-I
-        CSN_Off();
-        Instruction_Byte_MSB_First(NOP);
-        CSN_On();
-        if ((status_reg & BIT4) == 0x10){
-                CSN_Off();
-                Instruction_Byte_MSB_First(W_REGISTER | STATUS);
-                Write_Byte_MSB_First(clr_status,1);
-                CSN_On();
-                CSN_Off();
-                Instruction_Byte_MSB_First(FLUSH_TX);
-                CSN_On();
 
+
+        if(P1IN & ACTIVATE)
+        {// If SW is NOT pressed
+                    P1OUT &= ~LED; // LED OFF
+                    //STDBY-I
+                            CSN_Off();
+                            Instruction_Byte_MSB_First(W_TX_PAYLOAD);
+                            Write_Payload_MSB_First(payload2,8);
+                            Write_Payload_MSB_First(payload2,8);
+                            CSN_On();
+                            CE_On();
+                            __delay_cycles(50); //min pulse >10usec
+                            CE_Off();
+                            //TX settling 130 usec
+                            __delay_cycles(150);
+                            //TX MODE
+
+                            __delay_cycles(20000);
+                            //STDBY-I
+                            CSN_Off();
+                            Instruction_Byte_MSB_First(NOP);
+                            CSN_On();
+                            if ((status_reg & BIT4) == 0x10){
+                                    CSN_Off();
+                                    Instruction_Byte_MSB_First(W_REGISTER | STATUS);
+                                    Write_Byte_MSB_First(clr_status,1);
+                                    CSN_On();
+                                    CSN_Off();
+                                    Instruction_Byte_MSB_First(FLUSH_TX);
+                                    CSN_On();
+
+                            }
         }
-        __delay_cycles(100000);
-        CSN_Off();
-        Instruction_Byte_MSB_First(W_TX_PAYLOAD);
-        Write_Payload_MSB_First(payload2,8);
-        Write_Payload_MSB_First(payload2,8);
-        CSN_On();
-        CE_On();
-        __delay_cycles(50); //min pulse >10usec
-        CE_Off();
-        //TX settling 130 usec
-        __delay_cycles(150);
-        //TX MODE
+                else
+                {
+                    P1OUT |= LED;// else LED ON
+                    __delay_cycles(100000);
+                    CSN_Off();
+                    Instruction_Byte_MSB_First(W_TX_PAYLOAD);
+                    Write_Payload_MSB_First(payload1,8);
+                    Write_Payload_MSB_First(payload1,8);
+                    CSN_On();
+                    CE_On();
+                    __delay_cycles(50); //min pulse >10usec
+                    CE_Off();
+                    //TX settling 130 usec
+                    __delay_cycles(150);
+                    //TX MODE
 
-        __delay_cycles(20000);
-        //STDBY-I
-        CSN_Off();
-        Instruction_Byte_MSB_First(NOP);
-        CSN_On();
-        if ((status_reg & BIT4) == 0x10){
-                CSN_Off();
-                Instruction_Byte_MSB_First(W_REGISTER | STATUS);
-                Write_Byte_MSB_First(clr_status,1);
-                CSN_On();
-                CSN_Off();
-                Instruction_Byte_MSB_First(FLUSH_TX);
-                CSN_On();
+                    __delay_cycles(20000);
+                    //STDBY-I
+                    CSN_Off();
+                    Instruction_Byte_MSB_First(NOP);
+                    CSN_On();
+                    if ((status_reg & BIT4) == 0x10){
+                            CSN_Off();
+                            Instruction_Byte_MSB_First(W_REGISTER | STATUS);
+                            Write_Byte_MSB_First(clr_status,1);
+                            CSN_On();
+                            CSN_Off();
+                            Instruction_Byte_MSB_First(FLUSH_TX);
+                            CSN_On();
 
-        }
-
-
-        __delay_cycles(100000);
+                    }
 
 
+                    __delay_cycles(100000);
+                }
 
     }
 }

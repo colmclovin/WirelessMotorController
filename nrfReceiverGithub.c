@@ -31,14 +31,14 @@ int x;
 int pd; //payload func index 0-15
 int pd_i;  //payload func i index 0-7
 int pd_x;
-int pipe_nr;
+int pipe_nr; //4bytes = 32 bits
 int pyld1[8]; //1st 16 bytes in rx fifo
 int pyld2[8]; //2nd 16 bytes in rx fifo
 
 unsigned char status_reg;
 unsigned char read_reg[5];
 char buf[5];
-char pipe_nr_chr[5];
+char pipe_nr_chr[5]; //8bits*5 = 40 bits
 char bosluk[] = " ";
 char next_satir[] = "\r\n";  //sorry for mixing eng and tur. i'm doing it on purpose :)
 
@@ -98,19 +98,20 @@ void main(void)
 
     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
     //P2DIR &= 0x00 ;
+    P1DIR |= BIT0; //added
     P2OUT &= 0x00;
     P2DIR |= MOSI + SCLK + CE + CSN ;  //Output Pins
     P2DIR &= ~MISO;
     /*****************************************
     **SETTINGS FOR SERIAL MONITOR 19200 baud**
     *****************************************/
-    P1SEL = BIT1|BIT2;
-    P1SEL2 = BIT1|BIT2;
-    UCA0CTL1 |= UCSWRST+UCSSEL_2;
-    UCA0BR0 = 52;
-    UCA0BR1 = 0;
-    UCA0MCTL = UCBRS_0;
-    UCA0CTL1 &= ~UCSWRST;
+//    P1SEL = BIT1|BIT2;
+//    P1SEL2 = BIT1|BIT2;
+//    UCA0CTL1 |= UCSWRST+UCSSEL_2;
+//    UCA0BR0 = 52;
+//    UCA0BR1 = 0;
+//    UCA0MCTL = UCBRS_0;
+//    UCA0CTL1 &= ~UCSWRST;
     /***********************************
     ** END SETTINGS FOR SERIAL MONITOR**
     ************************************/
@@ -202,7 +203,11 @@ void main(void)
             Read_Byte_MSB_First(32,read_PAYLOAD);
             CSN_On();
             pipe_nr = status_reg & BIT4;
-            ltoa(pipe_nr,pipe_nr_chr,10);
+
+            //old returns int(32 bits)
+            //new pointer to char(1 bit)
+            //converts integer into ascii
+            ltoa(pipe_nr,pipe_nr_chr,10); //ti recommended
             //ser_output(pipe_nr_chr);
             //ser_output(next_satir);
             j=0;
@@ -214,7 +219,7 @@ void main(void)
                 j++;
 
             }
-            //ser_output(next_satir);
+            ser_output(next_satir);
             for (i=16;i<=30;i+=2){
                             pyld2[l]=read_PAYLOAD[i] | (read_PAYLOAD[i+1] << 8);
                             ltoa(pyld1[j],buf,10);
@@ -226,6 +231,20 @@ void main(void)
             Instruction_Byte_MSB_First(W_REGISTER | STATUS);
             Write_Byte_MSB_First(clr_status,1);
             CSN_On();
+
+
+            if(pyld1[0] == 1)
+            {
+                P1OUT ^= BIT0;
+                __delay_cycles(1000);
+
+            }
+            else if(pyld1[0] == 0)
+            {
+                P1OUT ^= BIT0;
+                __delay_cycles(1000);
+
+            }
         }
 
     }
