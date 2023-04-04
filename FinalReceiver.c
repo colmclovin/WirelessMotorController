@@ -12,25 +12,29 @@
 #include <stdlib.h>
 #include <string.h>
 
-//This code, together with the nrf24.h header file configures the nRF24L01+ as a RECEIVER
-//and receives 8 integer values from the transmitter (Arduino nano & nrf24L01+ & mq gas sensors - which are not necessary,
-//any 8 integer values will be OK. And it displays the values on serial input -19200 baud, I'll use Putty this time
-//Please check my YouTube channel & subscribe for the related content:
-//https://www.youtube.com/c/drselim
 
 #define MOSI BIT2  //   P1.2
 #define MISO BIT1  //   P1.1
 #define SCLK BIT4  //   P1.4
 #define CE BIT7    //   P1.7
 #define CSN BIT3   //   P1.3
-int i;
-int j;
-int k;
-int l; //for pload2, so many indexes..
-int x;
-int pd; //payload func index 0-15
-int pd_i;  //payload func i index 0-7
-int pd_x;
+
+#define COIL1 BIT5 //1.5
+#define COIL2 BIT0 //2.0
+#define COIL3 BIT1 //2.1
+#define COIL4 BIT2 //2.2
+#define LED BIT0
+
+
+
+ int i;
+ int j;
+ int k;
+ int l; //for pload2, so many indexes..
+ int x;
+ int pd; //payload func index 0-15
+ int pd_i;  //payload func i index 0-7
+ int pd_x;
 int pipe_nr; //4bytes = 32 bits
 int pyld1[8]; //1st 16 bytes in rx fifo
 int pyld2[8]; //2nd 16 bytes in rx fifo
@@ -39,8 +43,7 @@ unsigned char status_reg;
 unsigned char read_reg[5];
 char buf[5];
 char pipe_nr_chr[5]; //8bits*5 = 40 bits
-char bosluk[] = " ";
-char next_satir[] = "\r\n";  //sorry for mixing eng and tur. i'm doing it on purpose :)
+
 
 unsigned char read_reg_CONFIG[1];
 unsigned char read_reg_EN_AA[1];
@@ -78,6 +81,8 @@ unsigned char setup_retr_register[1]={0b01011111};  //retry values
 unsigned char en_aa_register[1]={0b00111111};
 unsigned char rx_pw_register[1]={0b00100000};  //RX_ payload width register -->32
 
+
+
 void SCLK_Pulse (void);  //To create a clock pulse high low
 void Send_Bit (unsigned int value);     //For sending 1 or zero
 void CE_On (void);  //Chip enable
@@ -89,19 +94,21 @@ void Instruction_Byte_MSB_First (int content);
 void Read_Byte_MSB_First(int index, unsigned char regname[]);
 void Write_Byte_MSB_First(unsigned char content[], int index2);
 void Write_Payload_MSB_First(int pyld[], int index3);
-void ser_output(char *str);  //Serial output func
-
+void motorStop(void);
+void motorCW(void);
+void motorCCW(void);
 void main(void)
     {
 
     __delay_cycles(100); //power on reset
 
     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
-    //P2DIR &= 0x00 ;
-    //P1DIR |= BIT0; //added
+    P2DIR |= COIL2 + COIL3 + COIL4;
     P2OUT &= 0x00;
-    P1DIR |= MOSI + SCLK + CE + CSN + BIT0 ;  //Output Pins
+    P1DIR |= MOSI + SCLK + CE + CSN + LED + COIL1;  //Output Pins
     P1DIR &= ~MISO;
+    P1OUT &= ~COIL1;
+
 
     CE_Off();
     CSN_On();
@@ -192,29 +199,25 @@ void main(void)
             CSN_On();
             pipe_nr = status_reg & BIT4;
 
-            //old returns int(32 bits)
-            //new pointer to char(1 bit)
-            //converts integer into ascii
+
             ltoa(pipe_nr,pipe_nr_chr,10); //ti recommended
-            //ser_output(pipe_nr_chr);
-            //ser_output(next_satir);
+
             j=0;
             l=0;
             for (i=0;i<=14;i+=2){
                 pyld1[j]=read_PAYLOAD[i] | (read_PAYLOAD[i+1] << 8);
                 ltoa(pyld1[j],buf,10);
-                ser_output(buf); ser_output(bosluk);
+
                 j++;
 
             }
-            ser_output(next_satir);
+
             for (i=16;i<=30;i+=2){
                             pyld2[l]=read_PAYLOAD[i] | (read_PAYLOAD[i+1] << 8);
                             ltoa(pyld1[j],buf,10);
-                            //ser_output(buf); ser_output(bosluk);
                             l++;
                         }
-            //ser_output(next_satir);
+
             CSN_Off();
             Instruction_Byte_MSB_First(W_REGISTER | STATUS);
             Write_Byte_MSB_First(clr_status,1);
@@ -222,15 +225,34 @@ void main(void)
 
 
             if(pyld1[0] == 1)
-            {
-                P1OUT |= BIT0;
+            {//open
+
+                P1OUT |= LED;
+                int v;
+                for(v=0;v<1000;v++){
+                motorCW();
+
+                }
                 __delay_cycles(1000);
+
+                motorStop();
+                __delay_cycles(1000);
+
+
+
 
             }
             else if(pyld1[0] == 0)
-            {
-                P1OUT &= ~BIT0;
+            {//close
+                P1OUT &= ~LED;
+                int v;
+                                for(v=0;v<1000;v++){
+                motorCCW();
+                                }
+                motorStop();
                 __delay_cycles(1000);
+
+
 
             }
         }
@@ -266,15 +288,6 @@ void CSN_On (void)
 void CSN_Off (void)
 {
     P1OUT &= ~CSN;
-}
-void Write_Byte(int content)  //Not ued in this application
-{
-
-    for (j=0;j<8;j++){
-             x = (content & (1 << j));  //Write to Address
-             Send_Bit(x);
-             SCLK_Pulse();
-        }
 }
 void Instruction_Byte_MSB_First(int content)
 {
@@ -355,9 +368,79 @@ void Write_Payload_MSB_First(int pyld[], int index3)
 
         }
 }
-void ser_output(char *str){
-    while(*str != 0){
-        while (!(IFG2&UCA0TXIFG));
-        UCA0TXBUF = *str++;
-    }
+
+
+void motorCW(void)
+{
+    //CLOCKWISE MOTOR ROTATION
+//delay >1950
+    //1,2
+    __delay_cycles(3000);
+    P2OUT &= ~COIL3 + ~COIL4;//coil 3 and 4 off
+    P1OUT |= COIL1; //1,2 on
+    P2OUT |= COIL2;
+    //2,3
+    __delay_cycles(3000);
+    P2OUT &= ~COIL4; // coil 4 off
+    P1OUT &= ~COIL1; //coil 1 off
+    P2OUT |= COIL2 + COIL3; // coil 3 on and coil 2 on
+
+    //3,4
+    __delay_cycles(3000);
+    P2OUT |=COIL3 + COIL4 ; //coil 3 and 4 on
+    P2OUT &= ~COIL2; //coil 2 off
+
+    P1OUT &= ~COIL1; // coil 1 and 2 off
+
+    //4,1
+    __delay_cycles(3000);
+    P2OUT &= ~COIL2;
+    P2OUT &= ~COIL3; //coil 3 off and coil 2 off
+    P2OUT |= COIL4; //coil 4 on
+    P1OUT |= COIL1; //coil 1 on
+    __delay_cycles(3000);
+
+
+}
+void motorCCW(void)
+{
+    //CLOCKWISE MOTOR ROTATION
+//delay >1950
+    //4,1
+    __delay_cycles(3000);
+    P2OUT &= ~COIL2;
+    P2OUT &= ~COIL3; //coil 3 off and coil 2 off
+    P2OUT |= COIL4; //coil 4 on
+    P1OUT |= COIL1; //coil 1 on
+    __delay_cycles(3000);
+
+    //3,4
+    __delay_cycles(3000);
+    P2OUT |=COIL3 + COIL4 ; //coil 3 and 4 on
+    P2OUT &= ~COIL2; //coil 2 off
+
+    P1OUT &= ~COIL1; // coil 1 and 2 off
+
+    //2,3
+    __delay_cycles(3000);
+    P2OUT &= ~COIL4; // coil 4 off
+    P1OUT &= ~COIL1; //coil 1 off
+    P2OUT |= COIL2 + COIL3; // coil 3 on and coil 2 on
+
+    //1,2
+    __delay_cycles(3000);
+    P2OUT &= ~COIL3 + ~COIL4;//coil 3 and 4 off
+    P1OUT |= COIL1; //1,2 on
+    P2OUT |= COIL2;
+
+
+
+}
+void motorStop(void)
+{
+    P2OUT &= ~COIL2; //coil 3 off //coil 2 off //coil 4 off
+    P2OUT &=  ~COIL3;
+    P2OUT &=  ~COIL4;
+    P1OUT &= ~COIL1; //coil 1 off
+
 }
