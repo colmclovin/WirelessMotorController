@@ -19,19 +19,19 @@
 #define SCLK BIT4  //   P1.4
 #define CE BIT7    //   P1.7
 #define CSN BIT5   //   P1.5 for transmitter and P1.3 for reciever
-#define ACTIVATE BIT6
+#define ACTIVATE BIT6 //P1.6
 //#define LED BIT0
 
-#define OPEN BIT0
-#define CLOSE BIT3
+#define OPEN BIT0 // P1.0
+#define CLOSE BIT3 // P1.3
 
 
-#define PWR_LED BIT3
-#define LED1 BIT1
-#define LED2 BIT2
-#define LED3 BIT0
-#define LED4 BIT4
-#define LED5 BIT5
+#define PWR_LED BIT3 //P2.3
+#define LED1 BIT1 //P2.1
+#define LED2 BIT2 //P2.2
+#define LED3 BIT0 //P2.0
+#define LED4 BIT4 //P2.4
+#define LED5 BIT5 //P2.5
 
 
 
@@ -107,17 +107,17 @@ void main(void)
     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
 
     //LED DECLARATION
-    P2DIR |= LED3 + LED1 + LED2 + PWR_LED + LED4 + LED5;
-    P2OUT |= PWR_LED;
+    P2DIR |= LED3 + LED1 + LED2 + PWR_LED + LED4 + LED5; //makes all Pins output for LEDs
+    P2OUT |= PWR_LED; //Turns on PWR_LED output
     P2OUT &= ~LED4 + ~LED5;
 
     P1OUT &= 0x00;
-    P1DIR |= MOSI + SCLK + CE + CSN;  //Output Pins //11111111
-    P1DIR &= ~MISO + ~ACTIVATE; // +~OPEN + ~CLOSE; //11111110
+    P1DIR |= MOSI + SCLK + CE + CSN;  //Output Pins
+    P1DIR &= ~MISO + ~ACTIVATE;
     P1REN |= ACTIVATE + OPEN + CLOSE;              //Pull Up/Down Enable
     P1OUT |= ACTIVATE + OPEN + CLOSE;              //Pull Up Enable
 
-    CE_Off();
+        CE_Off();
         CSN_On();
 
         /************************
@@ -247,7 +247,7 @@ void main(void)
                                         CSN_On();
                                         __delay_cycles(10000);
                                 }
-
+                                P2OUT &= ~LED4;
                                 }
                     }
                     if(P1IN & OPEN) //OPEN PIN SELECTED
@@ -288,14 +288,14 @@ void main(void)
                                                     CSN_On();
                                                     __delay_cycles(10000);
                                             }
-
+                                            P2OUT &= ~LED5;
                     }
                     }
 
 
                     } //ACTIVATE ELSE
 
-        P2OUT &= ~LED4 + ~LED5;
+
                     }//WHILE(1)
 
 

@@ -88,10 +88,7 @@ unsigned char rx_pw_register[1]={0b00100000};  //RX_ payload width register -->3
 
 void SCLK_Pulse (void);  //To create a clock pulse high low
 void Send_Bit (unsigned int value);     //For sending 1 or zero
-void CE_On (void);  //Chip enable
-void CE_Off (void);  //Chip disable
-void CSN_On (void);     //CSN On
-void CSN_Off (void);    //CSN Off
+
 void Write_Byte (int content);
 void Instruction_Byte_MSB_First (int content);
 void Read_Byte_MSB_First(int index, unsigned char regname[]);
@@ -123,93 +120,93 @@ void main(void)
     __enable_interrupt(); // Enable global interrupts
 
 
-    CE_Off();
-    CSN_On();
+    P1OUT &= ~CE;
+    P1OUT |= CSN;
     /************************
     **CONFIGURING REGISTERS**
     *************************/
     //EN_AA  -- enabling AA in all pipes
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | EN_AA);
     Write_Byte_MSB_First(en_aa_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RF_SETUP
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RF_SETUP);
     Write_Byte_MSB_First(rf_setupregister,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RX_ADDR_P0
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RX_ADDR_P0);
     Write_Byte_MSB_First(address,5); // write 5 bytes address
-    CSN_On();
+    P1OUT |= CSN;
     //TX_ADDR
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | TX_ADDR);
     Write_Byte_MSB_First(address,5); // write 5 bytes address
-    CSN_On();
+    P1OUT |= CSN;
     //RF_CH
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RF_CH);
     Write_Byte_MSB_First(rf_chanregister,1);
-    CSN_On();
+    P1OUT |= CSN;
     //SETUP_RETR
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | SETUP_RETR);
     Write_Byte_MSB_First(setup_retr_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RX_PW0
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RX_PW_P0);
     Write_Byte_MSB_First(rx_pw_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RX_PW1
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RX_PW_P1);
     Write_Byte_MSB_First(rx_pw_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RX_PW2
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RX_PW_P2);
     Write_Byte_MSB_First(rx_pw_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RX_PW3
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RX_PW_P3);
     Write_Byte_MSB_First(rx_pw_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RX_PW4
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RX_PW_P4);
     Write_Byte_MSB_First(rx_pw_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //RX_PW4
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | RX_PW_P5);
     Write_Byte_MSB_First(rx_pw_register,1);
-    CSN_On();
+    P1OUT |= CSN;
     //CONFIG
-    CSN_Off();
+    P1OUT &= ~CSN;
     Instruction_Byte_MSB_First(W_REGISTER | CONFIG);
     Write_Byte_MSB_First(configregister,1);
-    CSN_On();
+    P1OUT |= CSN;
     /****************************
     **END CONFIGURING REGISTERS**
     *****************************/
     __delay_cycles(2000);  //start_up >1.5 ms
 
     while(1){
-        CE_On();
+        P1OUT |= CE;
         __delay_cycles(150); //settling RX
-        CSN_Off();
+        P1OUT &= ~CSN;
         Instruction_Byte_MSB_First(NOP);  //to get the status reg..
-        CSN_On();
+        P1OUT |= CSN;
         if ((status_reg & BIT6) == 0x40){
-            CE_Off();
-            CSN_Off();
+            P1OUT &= ~CE;
+            P1OUT &= ~CSN;
             Instruction_Byte_MSB_First(R_RX_PAYLOAD);
             Read_Byte_MSB_First(32,read_PAYLOAD);
-            CSN_On();
+            P1OUT |= CSN;
             pipe_nr = status_reg & BIT4;
 
 
@@ -231,64 +228,80 @@ void main(void)
                             l++;
                         }
 
-            CSN_Off();
+            P1OUT &= ~CSN;
             Instruction_Byte_MSB_First(W_REGISTER | STATUS);
             Write_Byte_MSB_First(clr_status,1);
-            CSN_On();
+            P1OUT |= CSN;
 
 
-            if(pyld1[0] == 1 & (P1OUT & TOGGLE))
+            if(pyld1[0] == 1 & ~(P1DIR & TOGGLE)) //if toggle = 0
             {//open
+                    P2OUT |= LED2;
+                    P2IE |= BIT5;   // Enable interrupt on P2.5
+                    P2IES |= BIT5;  // Interrupt on falling edge (P2.5 pulled to ground)
 
-                P2IE |= BIT5;   // Enable interrupt on P2.5
+                    __enable_interrupt(); // Enable global interrupts
 
-                for(v=200;v>0;v--){
+
+                    while(1)
+                    {
                 motorCW();
-//                if(P1OUT & TOGGLE)
-//                {
-//                    motorStop();
-//
-//                    break;
-//                }
+                if(P1DIR & TOGGLE)
+                {
+                    P1DIR &= ~TOGGLE;
+                    break;
                 }
-
-                motorStop();
-
-
-
+                    }
 
             }
-            else if(pyld1[0] == 0 & (P1OUT & TOGGLE))
+            else if(pyld1[0] == 0 & ~(P1DIR & TOGGLE))//if toggle = 0
             {//close
+                P2OUT |= LED2;
                 P2IE |= BIT5;   // Enable interrupt on P2.5
+                P2IES |= BIT5;  // Interrupt on falling edge (P2.5 pulled to ground)
 
-                for(v=200;v>0;v--){
+                __enable_interrupt(); // Enable global interrupts
+
+
+                while(1)
+                {
                 motorCCW();
-//                if(P1OUT & TOGGLE)
-//                {
-//                    motorStop();
-//                    break;
-//                }
-                                }
-                motorStop();
+                if(P1DIR & TOGGLE)
+                {
+                    P1DIR &= ~TOGGLE;
+                    break;
+                }
+                }
+
 
 
 
             }
         }
 
+            //motorCW();
+            motorStop();
+            P2OUT &= ~LED2;
+
+
+
     }
 }
+
 
 #pragma vector=PORT2_VECTOR
 __interrupt void Port_2(void)
 {
 
-        P1OUT ^= TOGGLE;
+
+        P1DIR |= TOGGLE; //set toggle 1
 
 
         P2IFG &= ~BIT5; // Clear P2.5 interrupt flag
         P2IE &= ~BIT5; //disable the interrupt pin
+        __disable_interrupt();                   // disable all interrupts --> GIE = 0 (LOW)
+
+
 
 
 }
@@ -306,23 +319,8 @@ void Send_Bit (unsigned int value)
         P1OUT &= ~MOSI;
     }
 }
-void CE_On (void)
-{
-    P1OUT |= CE;
-}
 
-void CE_Off (void)
-{
-    P1OUT &= ~CE;
-}
-void CSN_On (void)
-{
-    P1OUT |= CSN;
-}
-void CSN_Off (void)
-{
-    P1OUT &= ~CSN;
-}
+
 void Instruction_Byte_MSB_First(int content)
 {
 
@@ -432,7 +430,6 @@ void motorCW(void)
     P2OUT &= ~COIL3; //coil 3 off and coil 2 off
     P2OUT |= COIL4; //coil 4 on
     P1OUT |= COIL1; //coil 1 on
-    __delay_cycles(3000);
 
 
 }
@@ -446,7 +443,6 @@ void motorCCW(void)
     P2OUT &= ~COIL3; //coil 3 off and coil 2 off
     P2OUT |= COIL4; //coil 4 on
     P1OUT |= COIL1; //coil 1 on
-    __delay_cycles(3000);
 
     //3,4
     __delay_cycles(3000);
