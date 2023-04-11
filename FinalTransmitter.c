@@ -5,22 +5,19 @@
   modify it under the terms of the GNU General Public License
   version 2 as published by the Free Software Foundation.
   */
-
+/*include section*/
 #include <msp430.h>
 #include "nrf24l01.h"
+/*end of include section*/
 
-//This code, together with the nrf24.h header file configures the nRF24L01+ as a Transmitter
-//and sends 8 integer values to a receiver (Arduino nano & nrf24L01+) to be displayed on serial monitor.
-//Please check my YouTube channel & subscribe for the related content:
-//https://www.youtube.com/c/drselim
 
+/*#define section*/
 #define MOSI BIT2  //   P1.2
 #define MISO BIT1  //   P1.1
 #define SCLK BIT4  //   P1.4
 #define CE BIT7    //   P1.7
-#define CSN BIT5   //   P1.5 for transmitter and P1.3 for reciever
+#define CSN BIT5   //   P1.5
 #define ACTIVATE BIT6 //P1.6
-//#define LED BIT0
 
 #define OPEN BIT0 // P1.0
 #define CLOSE BIT3 // P1.3
@@ -32,9 +29,10 @@
 #define LED3 BIT0 //P2.0
 #define LED4 BIT4 //P2.4
 #define LED5 BIT5 //P2.5
+/*end of #define section*/
 
 
-
+/**variable declaration section, mainly for NRF**/
 int i;
 int j;
 int k;
@@ -80,7 +78,9 @@ unsigned char address[6]="00001";
 unsigned char setup_retr_register[1]={0b01011111};
 unsigned char en_aa_register[1]={0b00111111};
 unsigned char rx_pw_register[1]={0b00100000};
+/**end of variable declaration section, mainly for NRF**/
 
+/*function declaration section*/
 void SCLK_Pulse (void);
 void Send_Bit (unsigned int value);
 void CE_On (void);  //Chip enable
@@ -92,36 +92,41 @@ void Instruction_Byte_MSB_First (int content);
 void Read_Byte_MSB_First(int index, unsigned char regname[]);
 void Write_Byte_MSB_First(unsigned char content[], int index2);
 void Write_Payload_MSB_First(int pyld[], int index3);
-//void Init_Registers(void);
+/*end of function declaration section*/
+
 
 void main(void)
     {
-    //Technically done the code, need to test the buttons
-    // Will need to update to work with the 4Mhz oscillator
+
 
     int payloadClose[8] = {0,0,0,0,0,0,0,0};
     int payloadOpen[8] = {1,1,1,1,1,1,1,1};
 
     __delay_cycles(100); //power on reset
-
+    /************************
+    **PIN INITIALIZATION**
+    *************************/
     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
 
     //LED DECLARATION
     P2DIR |= LED3 + LED1 + LED2 + PWR_LED + LED4 + LED5; //makes all Pins output for LEDs
     P2OUT |= PWR_LED; //Turns on PWR_LED output
-    P2OUT &= ~LED4 + ~LED5;
+    P2OUT &= ~LED4 + ~LED5; //turns of LED4 and LED5 status LEDS
 
-    P1OUT &= 0x00;
+    P1OUT &= 0x00; //ensures P1 outputs are all 0
     P1DIR |= MOSI + SCLK + CE + CSN;  //Output Pins
     P1DIR &= ~MISO + ~ACTIVATE;
-    P1REN |= ACTIVATE + OPEN + CLOSE;              //Pull Up/Down Enable
-    P1OUT |= ACTIVATE + OPEN + CLOSE;              //Pull Up Enable
+    P1REN |= ACTIVATE + OPEN + CLOSE; //Pull Up/Down Enable for inputs
+    P1OUT |= ACTIVATE + OPEN + CLOSE; //Pull Up Enable for inputs
+    /************************
+    **END OF PIN INITIALIZATION**
+    *************************/
 
         CE_Off();
         CSN_On();
 
         /************************
-            **CONFIGURING REGISTERS**
+            **CONFIGURING REGISTERS** Voodoo magic from youtube
             *************************/
             //EN_AA  -- enabling AA in all pipes
             CSN_Off();
@@ -189,16 +194,12 @@ void main(void)
             Write_Byte_MSB_First(configregister,1);
             CSN_On();
             /****************************
-            **END CONFIGURING REGISTERS**
+            **END CONFIGURING REGISTERS** Voodoo magic from youtube
             *****************************/
             __delay_cycles(2000);  //start_up 1.5 ms
 
 
-//    Init_Registers(); //Initializes the nRF module registers
-
-
-    while(1){
-        //put into sleep mode until button is pressed maybe :?
+    while(1){//MAIN LOOP
 
 
         if(P1IN & ACTIVATE)
@@ -216,7 +217,7 @@ void main(void)
                     else
                     {
                         P2OUT |= LED4; // LED4 ON
-                        //STDBY-I
+                        //voodoo magic from youtube sends close payload to NRF
                         int z;
                             for(z=0; z<10;z++)
                             {
@@ -247,7 +248,7 @@ void main(void)
                                         CSN_On();
                                         __delay_cycles(10000);
                                 }
-                                P2OUT &= ~LED4;
+                                P2OUT &= ~LED4; //turns off LED4
                                 }
                     }
                     if(P1IN & OPEN) //OPEN PIN SELECTED
@@ -257,6 +258,8 @@ void main(void)
                     else
                     {
                         P2OUT |= LED5;// else LED ON
+                        //voodoo magic from youtube sends open payload to NRF
+
                         int b;
                         for(b=0; b<10;b++)
                         {
@@ -301,16 +304,12 @@ void main(void)
 
                 }//INT MAIN
 
-//void Init_Registers(void)
-//{
-//
-//}
-void SCLK_Pulse (void)
+void SCLK_Pulse (void) //SCLK pulse for software SPI
 {
   P1OUT |= SCLK;//set high with OR 1
   P1OUT ^= SCLK;//toggle with XOR 1
 }
-void Send_Bit (unsigned int value)
+void Send_Bit (unsigned int value) //Pushes a bit onto MOSI pin
 {
     if (value != 0){
         P1OUT |= MOSI;}
@@ -318,20 +317,20 @@ void Send_Bit (unsigned int value)
         P1OUT &= ~MOSI;
     }
 }
-void CE_On (void)
+void CE_On (void) //self explanatory
 {
     P1OUT |= CE;
 }
 
-void CE_Off (void)
+void CE_Off (void) //self explanatory
 {
     P1OUT &= ~CE;
 }
-void CSN_On (void)
+void CSN_On (void) //self explanatory
 {
     P1OUT |= CSN;
 }
-void CSN_Off (void)
+void CSN_Off (void) //self explanatory
 {
     P1OUT &= ~CSN;
 }
@@ -344,7 +343,7 @@ void Write_Byte(int content)  //Not ued in this application
              SCLK_Pulse();
         }
 }
-void Instruction_Byte_MSB_First(int content)
+void Instruction_Byte_MSB_First(int content) //Voodoo magic from youtube
 {
 
     for (k=7;k>=0;--k){
@@ -368,7 +367,7 @@ void Instruction_Byte_MSB_First(int content)
                          }
 
 }
-void Read_Byte_MSB_First(int index, unsigned char regname[])
+void Read_Byte_MSB_First(int index, unsigned char regname[]) //Voodoo magic from youtube
 {
     for (i=0;i<=(index-1);i++){
         for (k=0;k<8;k++){
@@ -389,7 +388,7 @@ void Read_Byte_MSB_First(int index, unsigned char regname[])
     }
 }
 }
-void Write_Byte_MSB_First(unsigned char content[], int index2)
+void Write_Byte_MSB_First(unsigned char content[], int index2) //Voodoo magic from youtube
 {
     for (i=0;i<=(index2-1);i++){
     for (k=7;k>=0;--k){
@@ -403,7 +402,7 @@ void Write_Byte_MSB_First(unsigned char content[], int index2)
 }
 }
 
-void Write_Payload_MSB_First(int pyld[], int index3)
+void Write_Payload_MSB_First(int pyld[], int index3) //Voodoo magic from youtube
 {
     for (pd_i=0;pd_i<=(index3-1);pd_i++){
         for (pd=7;pd>=0;--pd){
